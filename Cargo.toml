@@ -1,13 +1,14 @@
 [package]
 name = "delegate-attr"
 description = "Attribute proc-macro to delegate method to a field"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Xidorn Quan <me@upsuper.org>"]
 edition = "2018"
 repository = "https://github.com/upsuper/delegate-attr"
 license = "MIT"
 categories = ["rust-patterns"]
 keywords = ["delegate"]
+readme = "README.md"
 
 [lib]
 proc-macro = true
