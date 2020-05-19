@@ -6,7 +6,7 @@ Attribute proc-macro to delegate method to a field.
 
 ### Delegate `impl` block
 
-```
+```rust
 use delegate_attr::delegate;
 
 struct Foo(String);
@@ -22,7 +22,7 @@ assert_eq!(foo.as_str(), "hello");
 assert_eq!(foo.into_bytes(), b"hello");
 ```
 
-```
+```rust
 struct Foo<T> {
     inner: RefCell<Vec<T>>,
 }
@@ -51,7 +51,7 @@ assert_eq!(foo.into_boxed_slice().as_ref(), &[1, 2]);
 
 ### Delegate single method
 
-```
+```rust
 struct Foo<T>(Vec<T>);
 
 impl<T> Foo<T> {
