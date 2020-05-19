@@ -5,15 +5,31 @@
 //! ```
 //! use delegate_attr::delegate;
 //!
-//! struct Foo {
-//!     a: Vec<u32>,
+//! struct Foo(String);
+//!
+//! #[delegate(self.0)]
+//! impl Foo {
+//!     fn as_str(&self) -> &str;
+//!     fn into_bytes(self) -> Vec<u8>;
 //! }
 //!
-//! #[delegate(a)]
-//! impl Foo {
+//! let foo = Foo("hello".to_owned());
+//! assert_eq!(foo.as_str(), "hello");
+//! assert_eq!(foo.into_bytes(), b"hello");
+//! ```
+//!
+//! ```
+//! use delegate_attr::delegate;
+//!
+//! struct Foo<T> {
+//!     a: Vec<T>,
+//! }
+//!
+//! #[delegate(self.a)]
+//! impl<T> Foo<T> {
 //!     fn len(&self) -> usize;
-//!     fn get(&self, index: usize) -> Option<&u32>;
-//!     fn push(&mut self, value: u32);
+//!     fn get(&self, index: usize) -> Option<&T>;
+//!     fn push(&mut self, value: T);
 //! }
 //!
 //! let mut foo = Foo { a: vec![1] };
@@ -24,22 +40,23 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, FnArg, ImplItem, ImplItemMethod, Item, ItemImpl, Pat, Signature};
+use syn::{
+    parse_macro_input, Expr, FnArg, ImplItem, ImplItemMethod, Item, ItemImpl, Pat, Signature,
+};
 
 #[proc_macro_attribute]
 pub fn delegate(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let field = parse_macro_input!(attr as Ident);
+    let receiver = parse_macro_input!(attr as Expr);
     let input = parse_macro_input!(item as Item);
     let output = match input {
-        Item::Impl(impl_block) => derive_impl_block(impl_block, field),
+        Item::Impl(impl_block) => derive_impl_block(impl_block, receiver),
         _ => panic!("Expected an impl block"),
     };
     output.into()
 }
 
-fn derive_impl_block(input: ItemImpl, field: Ident) -> proc_macro2::TokenStream {
+fn derive_impl_block(input: ItemImpl, receiver: Expr) -> proc_macro2::TokenStream {
     let ItemImpl {
         attrs,
         defaultness,
@@ -85,7 +102,7 @@ fn derive_impl_block(input: ItemImpl, field: Ident) -> proc_macro2::TokenStream 
         });
         quote! {
             #(#attrs)* #vis #defaultness #sig {
-                self.#field.#name(#(#args),*)
+                #receiver.#name(#(#args),*)
             }
         }
     });
