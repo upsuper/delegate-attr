@@ -130,6 +130,13 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> proc_macro2::Token
         matches!(inputs.next(), Some(FnArg::Receiver(_))),
         "Only methods with receiver (self) is supported",
     );
+    // Mark method always inline if it's not otherwise specified.
+    let has_inline = attrs.iter().any(|attr| attr.path.is_ident("inline"));
+    let inline = if !has_inline {
+        quote!(#[inline(always)])
+    } else {
+        quote!()
+    };
     let args = inputs.map(|arg| {
         let pat = match arg {
             FnArg::Typed(pat) => pat,
@@ -141,7 +148,7 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> proc_macro2::Token
         }
     });
     quote! {
-        #(#attrs)* #vis #defaultness #sig {
+        #(#attrs)* #inline #vis #defaultness #sig {
             #receiver.#name(#(#args),*)
         }
     }
