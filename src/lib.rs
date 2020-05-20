@@ -20,6 +20,8 @@
 //! assert_eq!(foo.into_bytes(), b"hello");
 //! ```
 //!
+//! ## With more complicated target
+//!
 //! ```
 //! # use delegate_attr::delegate;
 //! # use std::cell::RefCell;
@@ -49,6 +51,29 @@
 //! assert_eq!(foo.into_boxed_slice().as_ref(), &[1, 2]);
 //! ```
 //!
+//! ## `into` and `call` attribute
+//!
+//! ```
+//! # use delegate_attr::delegate;
+//! struct Inner;
+//! impl Inner {
+//!     pub fn method(&self, num: u32) -> u32 { num }
+//! }
+//!
+//! struct Wrapper { inner: Inner }
+//!
+//! #[delegate(self.inner)]
+//! impl Wrapper {
+//!     // calls method, converts result to u64
+//!     #[into]
+//!     pub fn method(&self, num: u32) -> u64;
+//!
+//!     // calls method, returns ()
+//!     #[call(method)]
+//!     pub fn method_noreturn(&self, num: u32);
+//! }
+//! ```
+//!
 //! ## Delegate single method
 //!
 //! ```
@@ -66,7 +91,9 @@
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, Expr, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, Signature};
+use syn::{
+    parse_macro_input, Expr, ExprParen, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, ReturnType,
+};
 
 #[proc_macro_attribute]
 pub fn delegate(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -114,29 +141,55 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> proc_macro2::TokenSt
 
 fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> proc_macro2::TokenStream {
     let ImplItemMethod {
-        attrs,
+        mut attrs,
         vis,
         defaultness,
         sig,
         block: _,
     } = input;
-    let Signature {
-        ident: name,
-        inputs,
-        ..
-    } = &sig;
-    let mut inputs = inputs.into_iter();
-    assert!(
-        matches!(inputs.next(), Some(FnArg::Receiver(_))),
-        "Only methods with receiver (self) is supported",
-    );
+    // Parse attributes.
+    let mut has_inline = false;
+    let mut has_into = false;
+    let mut call_name = None;
+    attrs.retain(|attr| {
+        let path = &attr.path;
+        if path.is_ident("inline") {
+            has_inline = true;
+        } else if path.is_ident("into") {
+            if !attr.tokens.is_empty() {
+                panic!("Unexpected #[into] syntax");
+            }
+            has_into = true;
+            return false;
+        } else if path.is_ident("call") {
+            let inner = match syn::parse2::<ExprParen>(attr.tokens.clone()) {
+                Ok(expr) if expr.attrs.is_empty() => expr.expr,
+                _ => panic!("Unexpected #[call] syntax"),
+            };
+            let path = match &*inner {
+                Expr::Path(path) if path.attrs.is_empty() && path.qself.is_none() => &path.path,
+                _ => panic!("Unexpected #[call] syntax"),
+            };
+            match path.get_ident() {
+                Some(ident) => call_name = Some(ident.clone()),
+                _ => panic!("Unexpected #[call] syntax"),
+            };
+            return false;
+        }
+        true
+    });
     // Mark method always inline if it's not otherwise specified.
-    let has_inline = attrs.iter().any(|attr| attr.path.is_ident("inline"));
     let inline = if !has_inline {
         quote!(#[inline(always)])
     } else {
         quote!()
     };
+    // List all parameters.
+    let mut inputs = sig.inputs.iter();
+    assert!(
+        matches!(inputs.next(), Some(FnArg::Receiver(_))),
+        "Only methods with receiver (self) is supported",
+    );
     let args = inputs.map(|arg| {
         let pat = match arg {
             FnArg::Typed(pat) => pat,
@@ -147,9 +200,19 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> proc_macro2::Token
             _ => panic!("Only identifier on argument is supported"),
         }
     });
+    // Generate method call.
+    let name = call_name.as_ref().unwrap_or(&sig.ident);
+    let body = quote! { #receiver.#name(#(#args),*) };
+    let body = match &sig.output {
+        ReturnType::Default => quote! { #body; },
+        ReturnType::Type(_, ty) if has_into => {
+            quote! { ::std::convert::Into::<#ty>::into(#body) }
+        }
+        _ => body,
+    };
     quote! {
         #(#attrs)* #inline #vis #defaultness #sig {
-            #receiver.#name(#(#args),*)
+            #body
         }
     }
 }
