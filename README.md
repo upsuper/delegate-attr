@@ -22,7 +22,11 @@ assert_eq!(foo.as_str(), "hello");
 assert_eq!(foo.into_bytes(), b"hello");
 ```
 
+### With more complicated target
+
 ```rust
+# use delegate_attr::delegate;
+# use std::cell::RefCell;
 struct Foo<T> {
     inner: RefCell<Vec<T>>,
 }
@@ -49,9 +53,33 @@ assert_eq!(foo.len(), 2);
 assert_eq!(foo.into_boxed_slice().as_ref(), &[1, 2]);
 ```
 
+### `into` and `call` attribute
+
+```rust
+# use delegate_attr::delegate;
+struct Inner;
+impl Inner {
+    pub fn method(&self, num: u32) -> u32 { num }
+}
+
+struct Wrapper { inner: Inner }
+
+#[delegate(self.inner)]
+impl Wrapper {
+    // calls method, converts result to u64
+    #[into]
+    pub fn method(&self, num: u32) -> u64;
+
+    // calls method, returns ()
+    #[call(method)]
+    pub fn method_noreturn(&self, num: u32);
+}
+```
+
 ### Delegate single method
 
 ```rust
+# use delegate_attr::delegate;
 struct Foo<T>(Vec<T>);
 
 impl<T> Foo<T> {
