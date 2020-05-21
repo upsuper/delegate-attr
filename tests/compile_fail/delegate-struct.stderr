@@ -1,0 +1,5 @@
+error: expected an impl block or method inside impl block
+ --> $DIR/delegate-struct.rs:4:1
+  |
+4 | struct Foo(Vec<u8>);
+  | ^^^^^^

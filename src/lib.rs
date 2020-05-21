@@ -90,7 +90,8 @@
 //! ```
 
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use proc_macro2::TokenTree;
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_macro_input, Expr, ExprParen, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, ReturnType,
 };
@@ -98,17 +99,42 @@ use syn::{
 #[proc_macro_attribute]
 pub fn delegate(attr: TokenStream, item: TokenStream) -> TokenStream {
     let receiver = parse_macro_input!(attr as Expr);
-    delegate_input(item, &receiver).into()
+    delegate_input(item.into(), &receiver).into()
 }
 
-fn delegate_input(input: TokenStream, receiver: &Expr) -> proc_macro2::TokenStream {
-    if let Ok(input) = syn::parse::<ItemImpl>(input.clone()) {
+fn delegate_input(input: proc_macro2::TokenStream, receiver: &Expr) -> proc_macro2::TokenStream {
+    if let Ok(input) = syn::parse2::<ItemImpl>(input.clone()) {
         return delegate_impl_block(input, receiver);
     }
-    if let Ok(input) = syn::parse::<ImplItemMethod>(input) {
+    if let Ok(input) = syn::parse2::<ImplItemMethod>(input.clone()) {
         return delegate_method(input, receiver);
     }
-    panic!("Expected an impl block or method inside impl block")
+    let mut tokens = input.into_iter();
+    let first_non_attr_token = 'outer: loop {
+        match tokens.next() {
+            None => break None,
+            Some(TokenTree::Punct(p)) if p.as_char() == '#' => {}
+            Some(token) => break Some(token),
+        }
+        loop {
+            match tokens.next() {
+                None => break 'outer None,
+                Some(TokenTree::Punct(_)) => {}
+                Some(TokenTree::Group(_)) => continue 'outer,
+                Some(token) => break 'outer Some(token),
+            }
+        }
+    };
+    if let Some(token) = first_non_attr_token {
+        let msg = match &token {
+            TokenTree::Ident(ident) if ident == "impl" => "invalid impl block for #[delegate]",
+            TokenTree::Ident(ident) if ident == "fn" => "invalid method for #[delegate]",
+            _ => "expected an impl block or method inside impl block",
+        };
+        quote_spanned! { token.span() => compile_error!(#msg); }
+    } else {
+        panic!("unexpected eof")
+    }
 }
 
 fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> proc_macro2::TokenStream {

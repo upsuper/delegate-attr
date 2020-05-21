@@ -1,0 +1,18 @@
+error: expected one of `!` or `::`, found `}`
+ --> $DIR/invalid-impl-cfg.rs:9:1
+  |
+7 | impl Foo {
+  |          - while parsing this item list starting here
+8 |     x
+  |      - expected one of `!` or `::`
+9 | }
+  | ^
+  | |
+  | unexpected token
+  | the item list ends here
+
+error: invalid impl block for #[delegate]
+ --> $DIR/invalid-impl-cfg.rs:7:1
+  |
+7 | impl Foo {
+  | ^^^^

@@ -1,0 +1,5 @@
+error: expected an impl block or method inside impl block
+ --> $DIR/delegate-extern.rs:5:1
+  |
+5 | extern "C" {}
+  | ^^^^^^
