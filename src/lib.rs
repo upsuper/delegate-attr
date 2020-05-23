@@ -89,20 +89,20 @@
 //! assert_eq!(foo.len(), 1);
 //! ```
 
-use proc_macro::TokenStream;
-use proc_macro2::TokenTree;
+use proc_macro::TokenStream as RawTokenStream;
+use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_macro_input, Expr, ExprParen, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, ReturnType,
 };
 
 #[proc_macro_attribute]
-pub fn delegate(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn delegate(attr: RawTokenStream, item: RawTokenStream) -> RawTokenStream {
     let receiver = parse_macro_input!(attr as Expr);
     delegate_input(item.into(), &receiver).into()
 }
 
-fn delegate_input(input: proc_macro2::TokenStream, receiver: &Expr) -> proc_macro2::TokenStream {
+fn delegate_input(input: TokenStream, receiver: &Expr) -> TokenStream {
     if let Ok(input) = syn::parse2::<ItemImpl>(input.clone()) {
         return delegate_impl_block(input, receiver);
     }
@@ -137,7 +137,7 @@ fn delegate_input(input: proc_macro2::TokenStream, receiver: &Expr) -> proc_macr
     }
 }
 
-fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> proc_macro2::TokenStream {
+fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     let ItemImpl {
         attrs,
         defaultness,
@@ -165,7 +165,7 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> proc_macro2::TokenSt
     }
 }
 
-fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> proc_macro2::TokenStream {
+fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
     let ImplItemMethod {
         mut attrs,
         vis,
