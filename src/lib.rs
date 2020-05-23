@@ -239,16 +239,21 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
         None => push_error(sig.paren_token.span, "expected self"),
     }
     // List all parameters.
-    let args = inputs.map(|arg| {
-        let pat = match arg {
-            FnArg::Typed(pat) => pat,
-            _ => panic!("Unexpected token"),
-        };
-        match &*pat.pat {
-            Pat::Ident(ident) => ident.to_token_stream(),
-            _ => panic!("Only identifier on argument is supported"),
-        }
-    });
+    let args = inputs
+        .filter_map(|arg| match arg {
+            FnArg::Typed(pat) => match &*pat.pat {
+                Pat::Ident(ident) => Some(ident.to_token_stream()),
+                _ => {
+                    push_error(pat.pat.span(), "expect an identifier");
+                    None
+                }
+            },
+            _ => {
+                push_error(arg.span(), "unexpected argument");
+                None
+            }
+        })
+        .collect::<Vec<_>>();
     // Return errors if any.
     if !errors.is_empty() {
         return errors;
