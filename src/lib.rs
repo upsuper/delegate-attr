@@ -1,8 +1,8 @@
 //! Attribute proc-macro to delegate method to a field.
 //!
-//! # Examples
+//! ## Examples
 //!
-//! ## Delegate `impl` block
+//! ### Delegate `impl` block
 //!
 //! ```
 //! use delegate_attr::delegate;
@@ -20,7 +20,7 @@
 //! assert_eq!(foo.into_bytes(), b"hello");
 //! ```
 //!
-//! ## With more complicated target
+//! ### With more complicated target
 //!
 //! ```
 //! # use delegate_attr::delegate;
@@ -51,7 +51,7 @@
 //! assert_eq!(foo.into_boxed_slice().as_ref(), &[1, 2]);
 //! ```
 //!
-//! ## `into` and `call` attribute
+//! ### `into` and `call` attribute
 //!
 //! ```
 //! # use delegate_attr::delegate;
@@ -74,7 +74,7 @@
 //! }
 //! ```
 //!
-//! ## Delegate single method
+//! ### Delegate single method
 //!
 //! ```
 //! # use delegate_attr::delegate;

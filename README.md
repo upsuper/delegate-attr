@@ -1,5 +1,7 @@
 # delegate-attr
 
+<!-- cargo-sync-readme start -->
+
 Attribute proc-macro to delegate method to a field.
 
 ## Examples
@@ -25,8 +27,6 @@ assert_eq!(foo.into_bytes(), b"hello");
 ### With more complicated target
 
 ```rust
-# use delegate_attr::delegate;
-# use std::cell::RefCell;
 struct Foo<T> {
     inner: RefCell<Vec<T>>,
 }
@@ -56,7 +56,6 @@ assert_eq!(foo.into_boxed_slice().as_ref(), &[1, 2]);
 ### `into` and `call` attribute
 
 ```rust
-# use delegate_attr::delegate;
 struct Inner;
 impl Inner {
     pub fn method(&self, num: u32) -> u32 { num }
@@ -79,7 +78,6 @@ impl Wrapper {
 ### Delegate single method
 
 ```rust
-# use delegate_attr::delegate;
 struct Foo<T>(Vec<T>);
 
 impl<T> Foo<T> {
@@ -90,3 +88,5 @@ impl<T> Foo<T> {
 let foo = Foo(vec![1]);
 assert_eq!(foo.len(), 1);
 ```
+
+<!-- cargo-sync-readme end -->
