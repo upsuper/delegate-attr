@@ -228,12 +228,17 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
     } else {
         quote!()
     };
-    // List all parameters.
     let mut inputs = sig.inputs.iter();
-    assert!(
-        matches!(inputs.next(), Some(FnArg::Receiver(_))),
-        "Only methods with receiver (self) is supported",
-    );
+    // Check self receiver.
+    match inputs.next() {
+        Some(FnArg::Receiver(_)) => {}
+        Some(FnArg::Typed(pat)) => match &*pat.pat {
+            Pat::Ident(ident) if ident.ident == "self" => {}
+            _ => push_error(pat.span(), "expected self"),
+        },
+        None => push_error(sig.paren_token.span, "expected self"),
+    }
+    // List all parameters.
     let args = inputs.map(|arg| {
         let pat = match arg {
             FnArg::Typed(pat) => pat,

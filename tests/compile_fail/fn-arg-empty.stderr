@@ -1,0 +1,5 @@
+error: expected self
+ --> $DIR/fn-arg-empty.rs:7:11
+  |
+7 |     fn len() -> usize;
+  |           ^^
