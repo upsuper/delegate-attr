@@ -1,7 +1,7 @@
 [package]
 name = "delegate-attr"
 description = "Attribute proc-macro to delegate method to a field"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Xidorn Quan <me@upsuper.org>"]
 edition = "2018"
 repository = "https://github.com/upsuper/delegate-attr"
