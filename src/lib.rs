@@ -90,8 +90,9 @@
 //! ```
 
 use proc_macro::TokenStream as RawTokenStream;
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
+use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, Expr, ExprParen, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, ReturnType,
 };
@@ -173,6 +174,10 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
         sig,
         block: _,
     } = input;
+    let mut errors = TokenStream::new();
+    let mut push_error = |span: Span, msg: &'static str| {
+        errors.extend(quote_spanned! { span => compile_error!(#msg); });
+    };
     // Parse attributes.
     let mut has_inline = false;
     let mut has_into = false;
@@ -183,23 +188,36 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
             has_inline = true;
         } else if path.is_ident("into") {
             if !attr.tokens.is_empty() {
-                panic!("Unexpected #[into] syntax");
+                push_error(attr.tokens.span(), "unexpected argument");
+            }
+            if has_into {
+                push_error(attr.span(), "duplicate #[into] attribute");
             }
             has_into = true;
             return false;
         } else if path.is_ident("call") {
-            let inner = match syn::parse2::<ExprParen>(attr.tokens.clone()) {
-                Ok(expr) if expr.attrs.is_empty() => expr.expr,
-                _ => panic!("Unexpected #[call] syntax"),
-            };
-            let path = match &*inner {
-                Expr::Path(path) if path.attrs.is_empty() && path.qself.is_none() => &path.path,
-                _ => panic!("Unexpected #[call] syntax"),
-            };
-            match path.get_ident() {
-                Some(ident) => call_name = Some(ident.clone()),
-                _ => panic!("Unexpected #[call] syntax"),
-            };
+            match syn::parse2::<ExprParen>(attr.tokens.clone()) {
+                Ok(expr) if expr.attrs.is_empty() => {
+                    let inner = expr.expr;
+                    match &*inner {
+                        Expr::Path(path) if path.attrs.is_empty() && path.qself.is_none() => {
+                            if let Some(ident) = path.path.get_ident() {
+                                if call_name.is_some() {
+                                    push_error(attr.span(), "duplicate #[call] attribute");
+                                }
+                                call_name = Some(ident.clone());
+                            } else {
+                                push_error(
+                                    inner.span(),
+                                    "invalid argument, expected an identifier",
+                                );
+                            }
+                        }
+                        _ => push_error(inner.span(), "invalid argument, expected an identifier"),
+                    }
+                }
+                _ => push_error(attr.tokens.span(), "invalid argument"),
+            }
             return false;
         }
         true
@@ -226,6 +244,13 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
             _ => panic!("Only identifier on argument is supported"),
         }
     });
+    // Return errors if any.
+    if !errors.is_empty() {
+        return errors;
+    } else {
+        // Drop it to ensure that we are not pushing anymore into it.
+        drop(errors);
+    }
     // Generate method call.
     let name = call_name.as_ref().unwrap_or(&sig.ident);
     let body = quote! { #receiver.#name(#(#args),*) };

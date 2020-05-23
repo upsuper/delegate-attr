@@ -1,0 +1,5 @@
+error: invalid argument, expected an identifier
+ --> $DIR/call-path.rs:7:12
+  |
+7 |     #[call(self.len)]
+  |            ^^^^

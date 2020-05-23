@@ -1,0 +1,5 @@
+error: unexpected argument
+  --> $DIR/into-extra-eq.rs:15:12
+   |
+15 |     #[into = "a"]
+   |            ^
