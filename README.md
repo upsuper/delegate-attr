@@ -27,6 +27,29 @@ assert_eq!(foo.as_str(), "hello");
 assert_eq!(foo.into_bytes(), b"hello");
 ```
 
+### Delegate trait `impl`
+
+```rust
+
+struct Iter(std::vec::IntoIter<u8>);
+
+#[delegate(self.0)]
+impl Iterator for Iter {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8>;
+    fn count(self) -> usize;
+    fn size_hint(&self) -> (usize, Option<usize>);
+    fn last(self) -> Option<u8>;
+}
+
+let iter = Iter(vec![1, 2, 4, 8].into_iter());
+assert_eq!(iter.count(), 4);
+let iter = Iter(vec![1, 2, 4, 8].into_iter());
+assert_eq!(iter.last(), Some(8));
+let iter = Iter(vec![1, 2, 4, 8].into_iter());
+assert_eq!(iter.sum::<u8>(), 15);
+```
+
 ### With more complicated target
 
 ```rust
