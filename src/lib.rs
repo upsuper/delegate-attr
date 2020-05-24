@@ -114,7 +114,7 @@
 //! ```
 
 use proc_macro::TokenStream as RawTokenStream;
-use proc_macro2::{Span, TokenStream, TokenTree};
+use proc_macro2::{Group, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 use syn::{
@@ -253,15 +253,21 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
         quote!()
     };
     let mut inputs = sig.inputs.iter();
-    // Check self receiver.
-    match inputs.next() {
-        Some(FnArg::Receiver(_)) => {}
+    // Extract the self token.
+    let self_token = match inputs.next() {
+        Some(FnArg::Receiver(receiver)) => receiver.self_token.to_token_stream(),
         Some(FnArg::Typed(pat)) => match &*pat.pat {
-            Pat::Ident(ident) if ident.ident == "self" => {}
-            _ => push_error(pat.span(), "expected self"),
+            Pat::Ident(ident) if ident.ident == "self" => ident.ident.to_token_stream(),
+            _ => {
+                push_error(pat.span(), "expected self");
+                TokenStream::new()
+            }
         },
-        None => push_error(sig.paren_token.span, "expected self"),
-    }
+        None => {
+            push_error(sig.paren_token.span, "expected self");
+            TokenStream::new()
+        }
+    };
     // List all parameters.
     let args = inputs
         .filter_map(|arg| match arg {
@@ -287,6 +293,9 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
     }
     // Generate method call.
     let name = call_name.as_ref().unwrap_or(&sig.ident);
+    // Replace the self token in the receiver with the token we extract above to ensure it comes
+    // from the right hygiene context.
+    let receiver = replace_self(receiver.to_token_stream(), &self_token);
     let body = quote! { #receiver.#name(#(#args),*) };
     let body = match &sig.output {
         ReturnType::Default => quote! { #body; },
@@ -300,4 +309,18 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
             #body
         }
     }
+}
+
+fn replace_self(expr: TokenStream, self_token: &TokenStream) -> TokenStream {
+    expr.into_iter()
+        .map(|token| match token {
+            TokenTree::Ident(ident) if ident == "self" => self_token.clone(),
+            TokenTree::Group(group) => {
+                let delimiter = group.delimiter();
+                let stream = replace_self(group.stream(), self_token);
+                Group::new(delimiter, stream).into_token_stream()
+            }
+            _ => token.into_token_stream(),
+        })
+        .collect()
 }
