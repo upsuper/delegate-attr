@@ -113,6 +113,8 @@
 //! assert_eq!(foo.len(), 1);
 //! ```
 
+extern crate proc_macro;
+
 use proc_macro::TokenStream as RawTokenStream;
 use proc_macro2::{Group, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
