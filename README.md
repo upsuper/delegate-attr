@@ -1,6 +1,6 @@
 # delegate-attr
 
-[![CI](https://github.com/upsuper/delegate-attr/workflows/CI/badge.svg)](https://github.com/upsuper/default-boxed/actions)
+[![CI](https://github.com/upsuper/delegate-attr/workflows/CI/badge.svg)](https://github.com/upsuper/delegate-attr/actions)
 [![Crates.io](https://img.shields.io/crates/v/delegate-attr.svg)](https://crates.io/crates/delegate-attr)
 
 <!-- cargo-sync-readme start -->
