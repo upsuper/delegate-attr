@@ -170,12 +170,13 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
         defaultness,
         unsafety,
         impl_token,
-        generics,
+        mut generics,
         trait_,
         self_ty,
         brace_token: _,
         items,
     } = input;
+    let where_clause = generics.where_clause.take();
     let trait_ = trait_.map(|(bang, path, for_)| quote!(#bang #path #for_));
     let items = items.into_iter().map(|item| {
         let method = match item {
@@ -186,7 +187,7 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     });
 
     quote! {
-        #(#attrs)* #defaultness #unsafety #impl_token #generics #trait_ #self_ty {
+        #(#attrs)* #defaultness #unsafety #impl_token #generics #trait_ #self_ty #where_clause {
             #(#items)*
         }
     }
