@@ -8,8 +8,8 @@ macro_rules! impl_iter {
         #[delegate(self.0)]
         impl Iterator for $struct {
             type Item = $item;
-            fn next(&mut self) -> Option<$item>;
-            fn count(self) -> usize;
+            fn next(&mut self) -> Option<$item> {}
+            fn count(self) -> usize {}
         }
     };
 }

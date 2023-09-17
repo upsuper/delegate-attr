@@ -1,5 +1,5 @@
 error: expected self
  --> $DIR/fn-arg-no-self.rs:7:12
   |
-7 |     fn len(x: &Foo) -> usize;
+7 |     fn len(x: &Foo) -> usize {}
   |            ^

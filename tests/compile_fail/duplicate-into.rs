@@ -14,7 +14,7 @@ struct Wrapper(Inner);
 impl Wrapper {
     #[into]
     #[into]
-    fn answer(&self) -> u64;
+    fn answer(&self) -> u64 {}
 }
 
 fn main() {}

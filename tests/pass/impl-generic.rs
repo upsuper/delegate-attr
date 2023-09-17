@@ -4,7 +4,7 @@ struct Foo<T>(Vec<T>);
 
 #[delegate(self.0)]
 impl<T> Foo<T> {
-    fn len(&self) -> usize;
+    fn len(&self) -> usize {}
 }
 
 fn main() {

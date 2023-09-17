@@ -10,7 +10,7 @@ impl<T> Foo<T>
 where
     T: Bar,
 {
-    fn len(&self) -> usize;
+    fn len(&self) -> usize {}
 }
 
 fn main() {

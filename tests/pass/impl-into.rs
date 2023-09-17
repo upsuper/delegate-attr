@@ -13,7 +13,7 @@ struct Wrapper(Inner);
 #[delegate(self.0)]
 impl Wrapper {
     #[into]
-    fn answer(&self) -> u64;
+    fn answer(&self) -> u64 {}
 }
 
 fn main() {

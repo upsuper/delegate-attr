@@ -11,8 +11,8 @@
 //!
 //! #[delegate(self.0)]
 //! impl Foo {
-//!     fn as_str(&self) -> &str;
-//!     fn into_bytes(self) -> Vec<u8>;
+//!     fn as_str(&self) -> &str {}
+//!     fn into_bytes(self) -> Vec<u8> {}
 //! }
 //!
 //! let foo = Foo("hello".to_owned());
@@ -30,10 +30,10 @@
 //! #[delegate(self.0)]
 //! impl Iterator for Iter {
 //!     type Item = u8;
-//!     fn next(&mut self) -> Option<u8>;
-//!     fn count(self) -> usize;
-//!     fn size_hint(&self) -> (usize, Option<usize>);
-//!     fn last(self) -> Option<u8>;
+//!     fn next(&mut self) -> Option<u8> {}
+//!     fn count(self) -> usize {}
+//!     fn size_hint(&self) -> (usize, Option<usize>) {}
+//!     fn last(self) -> Option<u8> {}
 //! }
 //!
 //! let iter = Iter(vec![1, 2, 4, 8].into_iter());
@@ -55,17 +55,17 @@
 //!
 //! #[delegate(self.inner.borrow())]
 //! impl<T> Foo<T> {
-//!     fn len(&self) -> usize;
+//!     fn len(&self) -> usize {}
 //! }
 //!
 //! #[delegate(self.inner.borrow_mut())]
 //! impl<T> Foo<T> {
-//!     fn push(&self, value: T);
+//!     fn push(&self, value: T) {}
 //! }
 //!
 //! #[delegate(self.inner.into_inner())]
 //! impl<T> Foo<T> {
-//!     fn into_boxed_slice(self) -> Box<[T]>;
+//!     fn into_boxed_slice(self) -> Box<[T]> {}
 //! }
 //!
 //! let foo = Foo { inner: RefCell::new(vec![1]) };
@@ -90,11 +90,11 @@
 //! impl Wrapper {
 //!     // calls method, converts result to u64
 //!     #[into]
-//!     pub fn method(&self, num: u32) -> u64;
+//!     pub fn method(&self, num: u32) -> u64 {}
 //!
 //!     // calls method, returns ()
 //!     #[call(method)]
-//!     pub fn method_noreturn(&self, num: u32);
+//!     pub fn method_noreturn(&self, num: u32) {}
 //! }
 //! ```
 //!
@@ -106,7 +106,7 @@
 //!
 //! impl<T> Foo<T> {
 //!     #[delegate(self.0)]
-//!     fn len(&self) -> usize;
+//!     fn len(&self) -> usize {}
 //! }
 //!
 //! let foo = Foo(vec![1]);
@@ -116,12 +116,10 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream as RawTokenStream;
-use proc_macro2::{Group, Span, TokenStream, TokenTree};
+use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
-use syn::{
-    parse_macro_input, Expr, ExprParen, FnArg, ImplItem, ImplItemMethod, ItemImpl, Pat, ReturnType,
-};
+use syn::{parse_macro_input, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, Meta, Pat, ReturnType};
 
 #[proc_macro_attribute]
 pub fn delegate(attr: RawTokenStream, item: RawTokenStream) -> RawTokenStream {
@@ -133,8 +131,8 @@ fn delegate_input(input: TokenStream, receiver: &Expr) -> TokenStream {
     if let Ok(input) = syn::parse2::<ItemImpl>(input.clone()) {
         return delegate_impl_block(input, receiver);
     }
-    if let Ok(input) = syn::parse2::<ImplItemMethod>(input.clone()) {
-        return delegate_method(input, receiver);
+    if let Ok(input) = syn::parse2::<ImplItemFn>(input.clone()) {
+        return delegate_fn(input, receiver);
     }
     let mut tokens = input.into_iter();
     let first_non_attr_token = 'outer: loop {
@@ -179,11 +177,11 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     let where_clause = generics.where_clause.take();
     let trait_ = trait_.map(|(bang, path, for_)| quote!(#bang #path #for_));
     let items = items.into_iter().map(|item| {
-        let method = match item {
-            ImplItem::Method(m) => m,
+        let func = match item {
+            ImplItem::Fn(f) => f,
             _ => return item.into_token_stream(),
         };
-        delegate_method(method, receiver)
+        delegate_fn(func, receiver)
     });
 
     quote! {
@@ -193,8 +191,8 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     }
 }
 
-fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
-    let ImplItemMethod {
+fn delegate_fn(input: ImplItemFn, receiver: &Expr) -> TokenStream {
+    let ImplItemFn {
         mut attrs,
         vis,
         defaultness,
@@ -202,48 +200,44 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
         block: _,
     } = input;
     let mut errors = TokenStream::new();
-    let mut push_error = |span: Span, msg: &'static str| {
-        errors.extend(quote_spanned! { span => compile_error!(#msg); });
-    };
+    macro_rules! push_error {
+        ($error: expr) => {
+            errors.extend($error.into_compile_error())
+        };
+        ($span: expr, $msg: expr) => {
+            push_error!(syn::Error::new($span, $msg))
+        };
+    }
     // Parse attributes.
     let mut has_inline = false;
     let mut has_into = false;
     let mut call_name = None;
     attrs.retain(|attr| {
-        let path = &attr.path;
+        let path = attr.path();
         if path.is_ident("inline") {
             has_inline = true;
         } else if path.is_ident("into") {
-            if !attr.tokens.is_empty() {
-                push_error(attr.tokens.span(), "unexpected argument");
+            match &attr.meta {
+                Meta::List(meta) => {
+                    push_error!(meta.delimiter.span().join(), "unexpected argument")
+                }
+                Meta::NameValue(meta) => push_error!(meta.eq_token.span, "unexpected argument"),
+                Meta::Path(_) => {}
             }
             if has_into {
-                push_error(attr.span(), "duplicate #[into] attribute");
+                push_error!(attr.span(), "duplicate #[into] attribute");
             }
             has_into = true;
             return false;
         } else if path.is_ident("call") {
-            match syn::parse2::<ExprParen>(attr.tokens.clone()) {
-                Ok(expr) if expr.attrs.is_empty() => {
-                    let inner = expr.expr;
-                    match &*inner {
-                        Expr::Path(path) if path.attrs.is_empty() && path.qself.is_none() => {
-                            if let Some(ident) = path.path.get_ident() {
-                                if call_name.is_some() {
-                                    push_error(attr.span(), "duplicate #[call] attribute");
-                                }
-                                call_name = Some(ident.clone());
-                            } else {
-                                push_error(
-                                    inner.span(),
-                                    "invalid argument, expected an identifier",
-                                );
-                            }
-                        }
-                        _ => push_error(inner.span(), "invalid argument, expected an identifier"),
+            match attr.parse_args::<Ident>() {
+                Ok(ident) => {
+                    if call_name.is_some() {
+                        push_error!(attr.span(), "duplicate #[call] attribute");
                     }
+                    call_name = Some(ident);
                 }
-                _ => push_error(attr.tokens.span(), "invalid argument"),
+                Err(e) => push_error!(e),
             }
             return false;
         }
@@ -262,12 +256,12 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
         Some(FnArg::Typed(pat)) => match &*pat.pat {
             Pat::Ident(ident) if ident.ident == "self" => ident.ident.to_token_stream(),
             _ => {
-                push_error(pat.span(), "expected self");
+                push_error!(pat.span(), "expected self");
                 TokenStream::new()
             }
         },
         None => {
-            push_error(sig.paren_token.span, "expected self");
+            push_error!(sig.paren_token.span.join(), "expected self");
             TokenStream::new()
         }
     };
@@ -277,12 +271,12 @@ fn delegate_method(input: ImplItemMethod, receiver: &Expr) -> TokenStream {
             FnArg::Typed(pat) => match &*pat.pat {
                 Pat::Ident(ident) => Some(ident.to_token_stream()),
                 _ => {
-                    push_error(pat.pat.span(), "expect an identifier");
+                    push_error!(pat.pat.span(), "expect an identifier");
                     None
                 }
             },
             _ => {
-                push_error(arg.span(), "unexpected argument");
+                push_error!(arg.span(), "unexpected argument");
                 None
             }
         })

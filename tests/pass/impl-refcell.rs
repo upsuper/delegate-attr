@@ -5,12 +5,12 @@ struct Foo(RefCell<Vec<u8>>);
 
 #[delegate(self.0.borrow())]
 impl Foo {
-    fn len(&self) -> usize;
+    fn len(&self) -> usize {}
 }
 
 #[delegate(self.0.borrow_mut())]
 impl Foo {
-    fn push(&self, value: u8);
+    fn push(&self, value: u8) {}
 }
 
 fn main() {

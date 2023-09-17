@@ -1,5 +1,5 @@
-error: invalid argument
+error: expected parentheses: #[call(...)]
  --> $DIR/call-eq.rs:7:12
   |
-7 |     #[call = "len"]
+7 |     #[call = len]
   |            ^

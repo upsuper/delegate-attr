@@ -1,4 +1,4 @@
-error: invalid argument, expected an identifier
+error: expected identifier
  --> $DIR/call-str.rs:7:12
   |
 7 |     #[call("len")]

@@ -1,4 +1,4 @@
-error: unexpected end of input, expected expression
+error: unexpected end of input, expected an expression
  --> $DIR/delegate-empty.rs:5:1
   |
 5 | #[delegate]

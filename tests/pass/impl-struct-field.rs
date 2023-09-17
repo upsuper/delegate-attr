@@ -6,7 +6,7 @@ struct Foo {
 
 #[delegate(self.inner)]
 impl Foo {
-    fn len(&self) -> usize;
+    fn len(&self) -> usize {}
 }
 
 fn main() {

@@ -12,7 +12,7 @@ struct Wrapper(Inner);
 
 #[delegate(self.0)]
 impl Wrapper {
-    fn answer(&self);
+    fn answer(&self) {}
 }
 
 fn main() {
