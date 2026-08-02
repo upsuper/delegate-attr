@@ -1,7 +1,7 @@
 use delegate_attr::delegate;
 
 #[delegate(x)]
-#[cfg(not(fake))]
+#[cfg(not(docsrs))]
 extern "C" {}
 
 fn main() {}
