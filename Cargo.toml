@@ -16,7 +16,7 @@ proc-macro = true
 [dependencies]
 quote = "1.0.5"
 proc-macro2 = "1.0.13"
-syn = { version = "2", features = ["full"] }
+syn = { version = "3", features = ["full"] }
 
 [dev-dependencies]
 trybuild = "1.0.27"

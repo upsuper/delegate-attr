@@ -165,7 +165,7 @@ fn delegate_input(input: TokenStream, receiver: &Expr) -> TokenStream {
 fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     let ItemImpl {
         attrs,
-        defaultness,
+        modifiers,
         unsafety,
         impl_token,
         mut generics,
@@ -175,7 +175,9 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
         items,
     } = input;
     let where_clause = generics.where_clause.take();
-    let trait_ = trait_.map(|(bang, path, for_)| quote!(#bang #path #for_));
+    let trait_ = trait_.map(|(path, for_)| quote!(#path #for_));
+    let defaultness = &modifiers.defaultness;
+    let polarity = &modifiers.polarity;
     let items = items.into_iter().map(|item| {
         let func = match item {
             ImplItem::Fn(f) => f,
@@ -185,7 +187,7 @@ fn delegate_impl_block(input: ItemImpl, receiver: &Expr) -> TokenStream {
     });
 
     quote! {
-        #(#attrs)* #defaultness #unsafety #impl_token #generics #trait_ #self_ty #where_clause {
+        #(#attrs)* #defaultness #unsafety #impl_token #generics #polarity #trait_ #self_ty #where_clause {
             #(#items)*
         }
     }
@@ -195,11 +197,12 @@ fn delegate_fn(input: ImplItemFn, receiver: &Expr) -> TokenStream {
     let ImplItemFn {
         mut attrs,
         vis,
-        defaultness,
+        modifiers,
         sig,
         block: _,
     } = input;
     let mut errors = TokenStream::new();
+    let defaultness = &modifiers.defaultness;
     macro_rules! push_error {
         ($error: expr) => {
             errors.extend($error.into_compile_error())
